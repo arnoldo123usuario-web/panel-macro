@@ -24,7 +24,7 @@ Cuando salga una versión nueva, el panel te avisa arriba con el enlace. Tus dat
 
 ## Avisos a Telegram con la PC apagada
 
-La carpeta `avisos` y `.github/workflows/avisos.yml` mandan, con GitHub Actions, la agenda del día (6:30 a.m. México) y un recordatorio antes de cada dato de alto impacto de EE.UU. Para usarlo en tu propio repo: haz un fork y guarda los secrets `TELEGRAM_TOKEN` (de tu bot de @BotFather) y `TELEGRAM_CHAT`.
+La carpeta `avisos` y `.github/workflows/avisos.yml` mandan, con GitHub Actions, la agenda del día una hora antes de la apertura de NY (6:30 o 7:30 a.m. México, según el horario de EE.UU.) y un recordatorio antes de cada dato de alto impacto de EE.UU. Para usarlo en tu propio repo: haz un fork y guarda los secrets `TELEGRAM_TOKEN` (de tu bot de @BotFather) y `TELEGRAM_CHAT`.
 
 ---
 

@@ -1,17 +1,19 @@
 # Avisos a Telegram aunque la PC esté apagada.
-# Horas en UTC (México = UTC-6 todo el año): 12:30 UTC = 6:30 a.m. en México.
+# Horas en UTC (México = UTC-6 todo el año). La agenda sale 1 h antes de la apertura de NY: como NY cambia de
+# horario y México no, corre a las 12:30 y 13:30 UTC y el script manda solo la que toca (6:30 o 7:30 México).
 # GitHub a veces corre los horarios unos minutos tarde; por eso el recordatorio sale con 20 min de margen.
 name: Avisos a Telegram
 
 on:
   schedule:
-    - cron: "30 12 * * 1-5"      # agenda del día, lunes a viernes 6:30 México
+    - cron: "30 12 * * 1-5"      # agenda del día (verano de EE.UU.: 6:30 México)
+    - cron: "30 13 * * 1-5"      # agenda del día (invierno de EE.UU.: 7:30 México)
     - cron: "*/5 11-20 * * 1-5"  # recordatorios antes de cada dato fuerte (5:00 a 14:55 México)
   workflow_dispatch:             # botón "Run workflow" para probar
     inputs:
       modo:
-        description: "agenda o recordatorios"
-        default: "agenda"
+        description: "agenda ya (la manda ahorita), agenda o recordatorios"
+        default: "agenda ya"
 
 permissions:
   contents: write                # para guardar qué ya se avisó (avisos/estado.json)
@@ -32,8 +34,8 @@ jobs:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
           HORARIO: ${{ vars.HORARIO || '09:30-11:00' }}
-          MODO: ${{ github.event_name == 'workflow_dispatch' && inputs.modo || (github.event.schedule == '30 12 * * 1-5' && 'agenda' || 'recordatorios') }}
-        run: python3 avisos/avisos.py "$MODO"
+          MODO: ${{ github.event_name == 'workflow_dispatch' && inputs.modo || (startsWith(github.event.schedule, '30 1') && 'agenda' || 'recordatorios') }}
+        run: python3 avisos/avisos.py $MODO
 
       - name: Guardar lo que ya se avisó
         run: |

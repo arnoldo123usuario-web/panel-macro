@@ -1,6 +1,7 @@
 """Avisos a Telegram aunque la PC esté apagada (corre en GitHub Actions).
 
-  python avisos.py agenda          → agenda del día: datos de EE.UU. de impacto alto y medio, hora de México
+  python avisos.py agenda          → agenda del día (sale 1 h antes de la apertura de NY): datos de EE.UU., hora de México
+  python avisos.py agenda ya       → la agenda ahorita, sin esperar la hora (para probar)
   python avisos.py recordatorios   → "En N min: CPI…" antes de cada dato de impacto alto (una sola vez)
   PRUEBA=1 python avisos.py …      → imprime en vez de mandar
 
@@ -23,6 +24,7 @@ ESTADO = Path(__file__).with_name("estado.json")
 SEMANA = Path(__file__).with_name("semana.json")
 FEED = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
 VENTANA_MIN = 20  # el recordatorio sale cuando faltan 20 min o menos (GitHub a veces corre unos minutos tarde)
+AGENDA_MIN = (15, 75)  # la agenda sale si faltan entre 15 y 75 min para la apertura de NY (la idea: 1 h antes)
 DIAS = ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"]
 
 NOMBRES = {  # Forex Factory los da en inglés
@@ -132,13 +134,21 @@ def horario(hoy):
     return apertura, a, b
 
 
-def agenda():
+def agenda(ya=False):
+    """Hay dos horarios en el workflow (12:30 y 13:30 UTC) porque NY cambia de horario y México no:
+    sale el que cae 1 h antes de la apertura (6:30 México en verano de EE.UU., 7:30 en invierno)."""
     ahora = datetime.now(MX)
     hoy = ahora.date()
+    apertura, a, b = horario(hoy)
+    faltan = (apertura - ahora).total_seconds() / 60
+    estado = json.loads(ESTADO.read_text(encoding="utf-8")) if ESTADO.exists() else {}
+    clave = f"agenda|{hoy}"
+    if not ya and (not AGENDA_MIN[0] <= faltan <= AGENDA_MIN[1] or clave in estado):
+        print(f"Agenda: faltan {faltan:.0f} min para la apertura; no toca ahora.")
+        return False
     eventos = [e for e in calendario(fresco=True) if e["hora"].date() == hoy]
     altos = [e for e in eventos if e.get("impact") == "High"]
     medios = [e for e in eventos if e.get("impact") == "Medium"]
-    apertura, a, b = horario(hoy)
     lineas = [f"Agenda de hoy · {DIAS[hoy.weekday()]} {hoy:%d/%m}", ""]
     if altos:
         lineas.append("Datos fuertes de EE.UU. (hora de México):")
@@ -150,7 +160,11 @@ def agenda():
         lineas.append("Impacto medio: " + "; ".join(f"{e['hora']:%H:%M} {nombre(e['title'])}" for e in medios))
     lineas += ["", f"Apertura de NY: {apertura:%H:%M} · tu horario: {a:%H:%M}–{b:%H:%M}",
                "Antes de abrir: relee tu plan de anoche. Un solo trade."]
-    return mandar("\n".join(lineas))
+    ok = mandar("\n".join(lineas))
+    if ok and not ya:
+        estado[clave] = ahora.isoformat(timespec="minutes")
+        ESTADO.write_text(json.dumps(estado, ensure_ascii=False, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+    return ok
 
 
 def recordatorios():
@@ -176,7 +190,7 @@ def recordatorios():
 
 if __name__ == "__main__":
     modo = (sys.argv[1] if len(sys.argv) > 1 else "recordatorios").strip().lower()
-    if modo == "agenda":
-        agenda()
+    if modo.startswith("agenda"):
+        agenda(ya="ya" in sys.argv[2:] or modo == "agenda ya")
     else:
         recordatorios()
